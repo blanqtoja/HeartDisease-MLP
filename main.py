@@ -127,10 +127,10 @@ class HeartDiseaseNet(nn.Module):
     def __init__(self, input_size):
         super(HeartDiseaseNet, self).__init__()
         # warstwy ukryte z 100 neuronami kazdej
-        self.fc1 = nn.Linear(input_size, 100)
-        self.fc2 = nn.Linear(100, 100)
+        self.fc1 = nn.Linear(input_size, 30)
+        self.fc2 = nn.Linear(30, 30)
         # warstwa wyjsciowa z 2 neuronami dla klasyfikacji binarnej
-        self.fc3 = nn.Linear(100, 2)
+        self.fc3 = nn.Linear(30, 2)
         self.relu = nn.ReLU()
         # dropout do regularyzacji (20% neuronow wylaczanych)
         self.dropout = nn.Dropout(0.2)

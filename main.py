@@ -116,20 +116,20 @@ X_test_tensor = torch.FloatTensor(X_test_filled).to(device)
 y_test_tensor = torch.LongTensor(y_test.values).to(device)
 
 # utworzenie dataloader do treningu w batchach
-train_dataset = TensorDataset(X_train_tensor, y_train_tensor)
-train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
+train_dataset = TensorDataset(X_train_tensor, y_train_tensor) #pytorch potrzebuje dataset, czyli łączenie cech i targetu
+train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True) # podczas jednej iteracji siec dsotanie 32 próbki
 
-# definicja sieci neuronowej
+
 class HeartDiseaseNet(nn.Module):
     def __init__(self, input_size):
         super(HeartDiseaseNet, self).__init__()
-        # warstwy ukryte z 100 neuronami kazdej
+        # warstwy ukryte
         self.fc1 = nn.Linear(input_size, 30)
         self.fc2 = nn.Linear(30, 30)
         # warstwa wyjsciowa z 2 neuronami dla klasyfikacji binarnej
         self.fc3 = nn.Linear(30, 2)
         self.relu = nn.ReLU()
-        # dropout do regularyzacji (20% neuronow wylaczanych)
+        # dropout do regularyzacji (20% neuronow wyłąćzanych)
         self.dropout = nn.Dropout(0.2)
         
     def forward(self, x):
@@ -142,12 +142,12 @@ class HeartDiseaseNet(nn.Module):
         return x
 
 # inicjalizacja modelu
-input_size = X_train_tensor.shape[1]
+input_size = X_train_tensor.shape[1] # rozmiar wejscia - liczba cech
 model = HeartDiseaseNet(input_size).to(device)
 
 # funkcja straty i optymalizator
-criterion = nn.CrossEntropyLoss()
-optimizer = optim.Adam(model.parameters(), lr=0.001)
+criterion = nn.CrossEntropyLoss()  #jak bardzo przewidywanie jest zblizone do rzeczywistej wartosci
+optimizer = optim.Adam(model.parameters(), lr=0.001) #adaptacyjne wspolczynniki uczenia
 
 # funkcja treningu modelu z trackingiem accuracy
 def train_model(model, train_loader, criterion, optimizer, X_test, y_test, epochs=800):
@@ -161,7 +161,7 @@ def train_model(model, train_loader, criterion, optimizer, X_test, y_test, epoch
         correct_train = 0
         total_train = 0
         
-        # Training phase
+        #uczenie
         for batch_X, batch_y in train_loader:
             optimizer.zero_grad()
             outputs = model(batch_X)
@@ -170,33 +170,32 @@ def train_model(model, train_loader, criterion, optimizer, X_test, y_test, epoch
             optimizer.step()
             epoch_loss += loss.item()
             
-            # Calculate training accuracy for this batch
-            _, predicted = torch.max(outputs.data, 1)
-            total_train += batch_y.size(0)
-            correct_train += (predicted == batch_y).sum().item()
+
+
+            _, predicted = torch.max(outputs.data, 1) #przewidywanie klasy z najwyzszym prawdopodobienstwem
+            total_train += batch_y.size(0) # liczba probek w batchu
+            correct_train += (predicted == batch_y).sum().item() # liczba poprawnych przewidywan
         
-        # Calculate average loss and training accuracy for epoch
-        avg_loss = epoch_loss / len(train_loader)
-        train_acc = correct_train / total_train
-        losses.append(avg_loss)
-        train_accuracies.append(train_acc)
+        avg_loss = epoch_loss / len(train_loader) # srednia strata dla epoki
+        train_acc = correct_train / total_train # dokladnosc na zbiorze treningowym
+        losses.append(avg_loss) 
+        train_accuracies.append(train_acc) 
         
-        # Evaluate on test set
-        model.eval()
-        with torch.no_grad():
+        
+        model.eval() #wlaczanie trybu testowania
+        with torch.no_grad(): # wylaczenie gradientow dla ewaluacji
             test_outputs = model(X_test)
             _, test_predicted = torch.max(test_outputs.data, 1)
             test_acc = (test_predicted == y_test).sum().item() / y_test.size(0)
             test_accuracies.append(test_acc)
-        model.train()  # Back to training mode
+        model.train()
         
-        # Print progress every 50 epochs
         if (epoch + 1) % 50 == 0:
             print(f'Epoch [{epoch+1}/{epochs}], Loss: {avg_loss:.4f}, Train Acc: {train_acc:.4f}, Test Acc: {test_acc:.4f}')
     
     return losses, train_accuracies, test_accuracies
 
-# funkcja ewaluacji modelu
+
 def evaluate_pytorch_model(model, X_test, y_test):
     model.eval()  # ustawienie modelu w tryb ewaluacji
     with torch.no_grad():  # wylaczenie gradientow dla ewaluacji
@@ -261,7 +260,7 @@ def plot_learning_curve_pytorch(losses):
 
 # funkcja do wykresu krzywej uczenia z loss i accuracy
 def plot_learning_curves(losses, train_accuracies, test_accuracies):
-    # Plot loss
+    # loss
     plt.figure(figsize=(8, 6))
     plt.plot(losses, 'g-', linewidth=2)
     plt.title("Training Loss", fontsize=14, fontweight='bold')
@@ -271,8 +270,8 @@ def plot_learning_curves(losses, train_accuracies, test_accuracies):
     plt.tight_layout()
     plt.savefig("./plots/training_loss.png", dpi=300, bbox_inches='tight')
     plt.show()
-    
-    # Plot accuracy
+  
+  # accuracy
     plt.figure(figsize=(8, 6))
     epochs = range(1, len(train_accuracies) + 1)
     plt.plot(epochs, train_accuracies, 'b-', label='Training', linewidth=2)
@@ -287,7 +286,7 @@ def plot_learning_curves(losses, train_accuracies, test_accuracies):
     plt.savefig("./plots/model_accuracy.png", dpi=300, bbox_inches='tight')
     plt.show()
     
-    # Plot accuracy difference (overfitting indicator)
+    #roznica accuracy treningu i testu
     plt.figure(figsize=(8, 6))
     acc_diff = [train - test for train, test in zip(train_accuracies, test_accuracies)]
     plt.plot(epochs, acc_diff, 'purple', linewidth=2)
@@ -300,7 +299,6 @@ def plot_learning_curves(losses, train_accuracies, test_accuracies):
     plt.savefig("./plots/accuracy_difference.png", dpi=300, bbox_inches='tight')
     plt.show()
 
-# trenowanie modelu z trackingiem accuracy
 print("Training")
 losses, train_accuracies, test_accuracies = train_model(
     model, train_loader, criterion, optimizer, X_test_tensor, y_test_tensor, epochs=250
@@ -309,8 +307,6 @@ losses, train_accuracies, test_accuracies = train_model(
 # ewaluacja modelu i wykresy
 accuracy = evaluate_pytorch_model(model, X_test_tensor, y_test_tensor)
 
-# Nowe wykresy accuracy
-# plot_accuracy(train_accuracies, test_accuracies)
 plot_learning_curves(losses, train_accuracies, test_accuracies)
 
 print(f"Neural Network Final Training Accuracy: {train_accuracies[-1] * 100:.2f}%")

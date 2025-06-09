@@ -20,7 +20,6 @@ from ucimlrepo import fetch_ucirepo
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f"Using device: {device}")
 
-# pobranie zbioru danych heart disease z repozytorium uci
 heart_disease = fetch_ucirepo(id=45) 
   
 # dane jako dataframe pandas
@@ -33,7 +32,7 @@ data = pd.concat([X, y], axis=1 )
 
 print(data)
 
-# funkcja do analizy wykresow pudelkowych dla cech numerycznych
+#analiza wykresow pudelkowych 
 def boxplot_analysis(data):
     numeric_features = ['age', 'sex', 'trestbps', 'chol', 'thalach', 'oldpeak', 'slope', 'ca']
 
@@ -48,32 +47,31 @@ def boxplot_analysis(data):
 
     plt.show()
 
-# funkcja do analizy macierzy korelacji
+#analizy macierzy korelacji
 def heatmap_analysis(data):
     numeric_features = ['age', 'sex', 'trestbps', 'chol', 'thalach', 'oldpeak', 'slope', 'ca']
 
     eda_df = data.loc[:, numeric_features].copy()
 
-    # obliczenie macierzy korelacji
+    #obliczenie macierzy korelacji
     corr = eda_df.corr()
 
-    # wizualizacja macierzy korelacji jako mapa ciepla
     plt.figure(figsize=(12, 10))
     sns.heatmap(corr, annot=True, vmin=-1.0, cmap='mako')
     plt.title("Correlation Heatmap")
     plt.show()
 
-# funkcja do analizy rozkladu klas w zbiorze danych
+#rozklad klas
 def pie_chart_analysis(data):
     plt.figure(figsize=(8, 8))
     plt.pie(data['target'].value_counts(), labels=[0, 1, 2, 3, 4], autopct='%.1f%%', colors=['#44ce1b', '#bbdb44', '#f7e379', '#f2a134', '#e51f1f'])
     plt.title("Class Distribution")
     plt.show()
 
-# zamiana problemu wieloklasowego na binarny - 0 pozostaje 0, reszta staje sie 1
+#zmiana z klas 0-4 na 0-1
 data['target'] = data['target'].apply(lambda x: 0 if x == 0 else 1)
 
-# funkcja do kodowania one-hot zmiennych kategorycznych
+
 def onehot_encode(df, column_dict):
     df = df.copy()
     for column, prefix in column_dict.items():
@@ -83,15 +81,14 @@ def onehot_encode(df, column_dict):
         df = df.drop(column, axis=1)
     return df
 
-# funkcja do preprocessingu danych
+#preprocessing wejsciowych
 def preprocess_inputs(df, scaler):
     df = df.copy()
     
-    # kodowanie one-hot dla cech nominalnych
+    # kodowanie one-hot
     nominal_features = ['cp', 'slope', 'thal']
     df = onehot_encode(df, dict(zip(nominal_features, ['CP', 'SL', 'TH'])))
     
-    # podzial na cechy i etykiety
     y = df['target'].copy()
     X = df.drop('target', axis=1).copy()
     
@@ -103,7 +100,7 @@ def preprocess_inputs(df, scaler):
 # preprocessing danych
 X, y = preprocess_inputs(data, StandardScaler())
 
-# podzial na zbiory treningowy i testowy (90% train, 10% test)
+#podzial na zbiory treningowy i testowy
 X_train, X_test, y_train, y_test = train_test_split(X, y, train_size=0.9, random_state=42)
 
 # uzupelnienie brakujacych wartosci srednia
@@ -112,7 +109,7 @@ imputer = SimpleImputer(strategy='mean')
 X_train_filled = imputer.fit_transform(X_train)
 X_test_filled = imputer.transform(X_test)
 
-# konwersja do tensorow pytorch i przeniesienie na odpowiednie urzadzenie
+#konwersja do tensorow pytorch i przeniesienie na odpowiednie urzadzenie
 X_train_tensor = torch.FloatTensor(X_train_filled).to(device)
 y_train_tensor = torch.LongTensor(y_train.values).to(device)
 X_test_tensor = torch.FloatTensor(X_test_filled).to(device)
@@ -245,51 +242,38 @@ def plot_learning_curve_pytorch(losses):
     plt.show()
 
 # funkcja do wykresu accuracy
-def plot_accuracy(train_accuracies, test_accuracies):
-    plt.figure(figsize=(12, 5))
+# def plot_accuracy(train_accuracies, test_accuracies):
+#     plt.figure(figsize=(10, 6))
     
-    # Plot accuracy
-    plt.subplot(1, 2, 1)
-    epochs = range(1, len(train_accuracies) + 1)
-    plt.plot(epochs, train_accuracies, 'b-', label='Training Accuracy', linewidth=2)
-    plt.plot(epochs, test_accuracies, 'r-', label='Test Accuracy', linewidth=2)
-    plt.title('Model Accuracy Over Epochs', fontsize=14, fontweight='bold')
-    plt.xlabel('Epoch')
-    plt.ylabel('Accuracy')
-    plt.legend()
-    plt.grid(True, alpha=0.3)
-    plt.ylim(0, 1)
+#     epochs = range(1, len(train_accuracies) + 1)
+#     plt.plot(epochs, train_accuracies, 'b-', label='Training Accuracy', linewidth=2)
+#     plt.plot(epochs, test_accuracies, 'r-', label='Test Accuracy', linewidth=2)
+#     plt.title('Model Accuracy Over Epochs', fontsize=14, fontweight='bold')
+#     plt.xlabel('Epoch')
+#     plt.ylabel('Accuracy')
+#     plt.legend()
+#     plt.grid(True, alpha=0.3)
+#     plt.ylim(0, 1)
     
-    # Plot zoomed accuracy (last 50% of training)
-    plt.subplot(1, 2, 2)
-    start_idx = len(epochs) // 2
-    plt.plot(epochs[start_idx:], train_accuracies[start_idx:], 'b-', label='Training Accuracy', linewidth=2)
-    plt.plot(epochs[start_idx:], test_accuracies[start_idx:], 'r-', label='Test Accuracy', linewidth=2)
-    plt.title('Model Accuracy (Second Half)', fontsize=14, fontweight='bold')
-    plt.xlabel('Epoch')
-    plt.ylabel('Accuracy')
-    plt.legend()
-    plt.grid(True, alpha=0.3)
-    plt.ylim(0, 1)
-    
-    plt.tight_layout()
-    plt.savefig("./plots/accuracy_plot.png", dpi=300, bbox_inches='tight')
-    plt.show()
+#     plt.tight_layout()
+#     plt.savefig("./plots/accuracy_plot.png", dpi=300, bbox_inches='tight')
+#     plt.show()
 
 # funkcja do wykresu krzywej uczenia z loss i accuracy
 def plot_learning_curves(losses, train_accuracies, test_accuracies):
-    plt.figure(figsize=(15, 5))
-    
     # Plot loss
-    plt.subplot(1, 3, 1)
+    plt.figure(figsize=(8, 6))
     plt.plot(losses, 'g-', linewidth=2)
     plt.title("Training Loss", fontsize=14, fontweight='bold')
     plt.xlabel("Epochs")
     plt.ylabel("Loss")
     plt.grid(True, alpha=0.3)
+    plt.tight_layout()
+    plt.savefig("./plots/training_loss.png", dpi=300, bbox_inches='tight')
+    plt.show()
     
     # Plot accuracy
-    plt.subplot(1, 3, 2)
+    plt.figure(figsize=(8, 6))
     epochs = range(1, len(train_accuracies) + 1)
     plt.plot(epochs, train_accuracies, 'b-', label='Training', linewidth=2)
     plt.plot(epochs, test_accuracies, 'r-', label='Test', linewidth=2)
@@ -299,19 +283,21 @@ def plot_learning_curves(losses, train_accuracies, test_accuracies):
     plt.legend()
     plt.grid(True, alpha=0.3)
     plt.ylim(0, 1)
+    plt.tight_layout()
+    plt.savefig("./plots/model_accuracy.png", dpi=300, bbox_inches='tight')
+    plt.show()
     
     # Plot accuracy difference (overfitting indicator)
-    plt.subplot(1, 3, 3)
+    plt.figure(figsize=(8, 6))
     acc_diff = [train - test for train, test in zip(train_accuracies, test_accuracies)]
     plt.plot(epochs, acc_diff, 'purple', linewidth=2)
-    plt.title("Training - Test Accuracy", fontsize=14, fontweight='bold')
+    plt.title("Training - Test Accuracy Difference", fontsize=14, fontweight='bold')
     plt.xlabel("Epochs")
     plt.ylabel("Accuracy Difference")
     plt.grid(True, alpha=0.3)
     plt.axhline(y=0, color='black', linestyle='--', alpha=0.5)
-    
     plt.tight_layout()
-    plt.savefig("./plots/learning_curves_complete.png", dpi=300, bbox_inches='tight')
+    plt.savefig("./plots/accuracy_difference.png", dpi=300, bbox_inches='tight')
     plt.show()
 
 # trenowanie modelu z trackingiem accuracy
@@ -324,7 +310,7 @@ losses, train_accuracies, test_accuracies = train_model(
 accuracy = evaluate_pytorch_model(model, X_test_tensor, y_test_tensor)
 
 # Nowe wykresy accuracy
-plot_accuracy(train_accuracies, test_accuracies)
+# plot_accuracy(train_accuracies, test_accuracies)
 plot_learning_curves(losses, train_accuracies, test_accuracies)
 
 print(f"Neural Network Final Training Accuracy: {train_accuracies[-1] * 100:.2f}%")

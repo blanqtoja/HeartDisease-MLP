@@ -152,39 +152,52 @@ model = HeartDiseaseNet(input_size).to(device)
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.parameters(), lr=0.001)
 
-# funkcja treningu modelu
-def train_model(model, train_loader, criterion, optimizer, epochs=800):
-    model.train()  # ustawienie modelu w tryb treningu
+# funkcja treningu modelu z trackingiem accuracy
+def train_model(model, train_loader, criterion, optimizer, X_test, y_test, epochs=800):
+    model.train()
     losses = []
+    train_accuracies = []
+    test_accuracies = []
     
     for epoch in range(epochs):
         epoch_loss = 0.0
+        correct_train = 0
+        total_train = 0
+        
+        # Training phase
         for batch_X, batch_y in train_loader:
-            # zerowanie gradientow
             optimizer.zero_grad()
-            # propagacja w przod
             outputs = model(batch_X)
-            # obliczenie straty
             loss = criterion(outputs, batch_y)
-            # propagacja wsteczna
             loss.backward()
-            # aktualizacja wag
             optimizer.step()
             epoch_loss += loss.item()
+            
+            # Calculate training accuracy for this batch
+            _, predicted = torch.max(outputs.data, 1)
+            total_train += batch_y.size(0)
+            correct_train += (predicted == batch_y).sum().item()
         
-        # obliczenie sredniej straty dla epoki
+        # Calculate average loss and training accuracy for epoch
         avg_loss = epoch_loss / len(train_loader)
+        train_acc = correct_train / total_train
         losses.append(avg_loss)
+        train_accuracies.append(train_acc)
         
-        # wyswietlenie straty co 100 epok
-        if (epoch + 1) % 100 == 0:
-            print(f'Epoch [{epoch+1}/{epochs}], Loss: {avg_loss:.4f}')
+        # Evaluate on test set
+        model.eval()
+        with torch.no_grad():
+            test_outputs = model(X_test)
+            _, test_predicted = torch.max(test_outputs.data, 1)
+            test_acc = (test_predicted == y_test).sum().item() / y_test.size(0)
+            test_accuracies.append(test_acc)
+        model.train()  # Back to training mode
+        
+        # Print progress every 50 epochs
+        if (epoch + 1) % 50 == 0:
+            print(f'Epoch [{epoch+1}/{epochs}], Loss: {avg_loss:.4f}, Train Acc: {train_acc:.4f}, Test Acc: {test_acc:.4f}')
     
-    return losses
-
-# trenowanie modelu
-print("Training")
-losses = train_model(model, train_loader, criterion, optimizer, epochs=250)
+    return losses, train_accuracies, test_accuracies
 
 # funkcja ewaluacji modelu
 def evaluate_pytorch_model(model, X_test, y_test):
@@ -231,8 +244,89 @@ def plot_learning_curve_pytorch(losses):
     plt.savefig("./plots/learning_curve.png")
     plt.show()
 
-# ewaluacja modelu
-accuracy = evaluate_pytorch_model(model, X_test_tensor, y_test_tensor)
-plot_learning_curve_pytorch(losses)
+# funkcja do wykresu accuracy
+def plot_accuracy(train_accuracies, test_accuracies):
+    plt.figure(figsize=(12, 5))
+    
+    # Plot accuracy
+    plt.subplot(1, 2, 1)
+    epochs = range(1, len(train_accuracies) + 1)
+    plt.plot(epochs, train_accuracies, 'b-', label='Training Accuracy', linewidth=2)
+    plt.plot(epochs, test_accuracies, 'r-', label='Test Accuracy', linewidth=2)
+    plt.title('Model Accuracy Over Epochs', fontsize=14, fontweight='bold')
+    plt.xlabel('Epoch')
+    plt.ylabel('Accuracy')
+    plt.legend()
+    plt.grid(True, alpha=0.3)
+    plt.ylim(0, 1)
+    
+    # Plot zoomed accuracy (last 50% of training)
+    plt.subplot(1, 2, 2)
+    start_idx = len(epochs) // 2
+    plt.plot(epochs[start_idx:], train_accuracies[start_idx:], 'b-', label='Training Accuracy', linewidth=2)
+    plt.plot(epochs[start_idx:], test_accuracies[start_idx:], 'r-', label='Test Accuracy', linewidth=2)
+    plt.title('Model Accuracy (Second Half)', fontsize=14, fontweight='bold')
+    plt.xlabel('Epoch')
+    plt.ylabel('Accuracy')
+    plt.legend()
+    plt.grid(True, alpha=0.3)
+    plt.ylim(0, 1)
+    
+    plt.tight_layout()
+    plt.savefig("./plots/accuracy_plot.png", dpi=300, bbox_inches='tight')
+    plt.show()
 
-print(f"Neural Network Accuracy: {accuracy * 100:.2f}%")
+# funkcja do wykresu krzywej uczenia z loss i accuracy
+def plot_learning_curves(losses, train_accuracies, test_accuracies):
+    plt.figure(figsize=(15, 5))
+    
+    # Plot loss
+    plt.subplot(1, 3, 1)
+    plt.plot(losses, 'g-', linewidth=2)
+    plt.title("Training Loss", fontsize=14, fontweight='bold')
+    plt.xlabel("Epochs")
+    plt.ylabel("Loss")
+    plt.grid(True, alpha=0.3)
+    
+    # Plot accuracy
+    plt.subplot(1, 3, 2)
+    epochs = range(1, len(train_accuracies) + 1)
+    plt.plot(epochs, train_accuracies, 'b-', label='Training', linewidth=2)
+    plt.plot(epochs, test_accuracies, 'r-', label='Test', linewidth=2)
+    plt.title("Model Accuracy", fontsize=14, fontweight='bold')
+    plt.xlabel("Epochs")
+    plt.ylabel("Accuracy")
+    plt.legend()
+    plt.grid(True, alpha=0.3)
+    plt.ylim(0, 1)
+    
+    # Plot accuracy difference (overfitting indicator)
+    plt.subplot(1, 3, 3)
+    acc_diff = [train - test for train, test in zip(train_accuracies, test_accuracies)]
+    plt.plot(epochs, acc_diff, 'purple', linewidth=2)
+    plt.title("Training - Test Accuracy", fontsize=14, fontweight='bold')
+    plt.xlabel("Epochs")
+    plt.ylabel("Accuracy Difference")
+    plt.grid(True, alpha=0.3)
+    plt.axhline(y=0, color='black', linestyle='--', alpha=0.5)
+    
+    plt.tight_layout()
+    plt.savefig("./plots/learning_curves_complete.png", dpi=300, bbox_inches='tight')
+    plt.show()
+
+# trenowanie modelu z trackingiem accuracy
+print("Training")
+losses, train_accuracies, test_accuracies = train_model(
+    model, train_loader, criterion, optimizer, X_test_tensor, y_test_tensor, epochs=250
+)
+
+# ewaluacja modelu i wykresy
+accuracy = evaluate_pytorch_model(model, X_test_tensor, y_test_tensor)
+
+# Nowe wykresy accuracy
+plot_accuracy(train_accuracies, test_accuracies)
+plot_learning_curves(losses, train_accuracies, test_accuracies)
+
+print(f"Neural Network Final Training Accuracy: {train_accuracies[-1] * 100:.2f}%")
+print(f"Neural Network Final Test Accuracy: {test_accuracies[-1] * 100:.2f}%")
+print(f"Neural Network Final Accuracy: {accuracy * 100:.2f}%")

@@ -16,13 +16,11 @@ sns.set_style('darkgrid')
 
 from ucimlrepo import fetch_ucirepo 
 
-# ustawienie urzadzenia - gpu jesli dostepne, w przeciwnym razie cpu
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-print(f"Using device: {device}")
 
 heart_disease = fetch_ucirepo(id=45) 
   
-# dane jako dataframe pandas
+
 X = heart_disease.data.features 
 y = heart_disease.data.targets 
 y.columns = ['target']
@@ -45,9 +43,8 @@ def boxplot_analysis(data):
         plt.subplot(2, 4, i + 1)
         sns.boxplot(eda_df[eda_df.columns[i]])
 
-    plt.show()
+    # plt.show()
 
-#analizy macierzy korelacji
 def heatmap_analysis(data):
     numeric_features = ['age', 'sex', 'trestbps', 'chol', 'thalach', 'oldpeak', 'slope', 'ca']
 
@@ -59,17 +56,17 @@ def heatmap_analysis(data):
     plt.figure(figsize=(12, 10))
     sns.heatmap(corr, annot=True, vmin=-1.0, cmap='mako')
     plt.title("Correlation Heatmap")
-    plt.show()
+    # plt.show()
 
 #rozklad klas
 def pie_chart_analysis(data):
     plt.figure(figsize=(8, 8))
     plt.pie(data['target'].value_counts(), labels=[0, 1, 2, 3, 4], autopct='%.1f%%', colors=['#44ce1b', '#bbdb44', '#f7e379', '#f2a134', '#e51f1f'])
     plt.title("Class Distribution")
-    plt.show()
+    # plt.show()
 
 #zmiana z klas 0-4 na 0-1
-data['target'] = data['target'].apply(lambda x: 0 if x == 0 else 1)
+# data['target'] = data['target'].apply(lambda x: 0 if x == 0 else 1)
 
 
 def onehot_encode(df, column_dict):
@@ -123,11 +120,11 @@ train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True) # podczas 
 class HeartDiseaseNet(nn.Module):
     def __init__(self, input_size):
         super(HeartDiseaseNet, self).__init__()
+        self.fc1 = nn.Linear(input_size, 10)
         # warstwy ukryte
-        self.fc1 = nn.Linear(input_size, 30)
-        self.fc2 = nn.Linear(30, 30)
+        # self.fc2 = nn.Linear(30, 30)
         # warstwa wyjsciowa z 2 neuronami dla klasyfikacji binarnej
-        self.fc3 = nn.Linear(30, 2)
+        self.fc2 = nn.Linear(10, 5)
         self.relu = nn.ReLU()
         # dropout do regularyzacji (20% neuronow wyłąćzanych)
         self.dropout = nn.Dropout(0.2)
@@ -137,8 +134,8 @@ class HeartDiseaseNet(nn.Module):
         x = self.relu(self.fc1(x))
         x = self.dropout(x)
         x = self.relu(self.fc2(x))
-        x = self.dropout(x)
-        x = self.fc3(x)
+        # x = self.dropout(x)
+        # x = self.fc3(x)
         return x
 
 # inicjalizacja modelu
@@ -149,7 +146,6 @@ model = HeartDiseaseNet(input_size).to(device)
 criterion = nn.CrossEntropyLoss()  #jak bardzo przewidywanie jest zblizone do rzeczywistej wartosci
 optimizer = optim.Adam(model.parameters(), lr=0.001) #adaptacyjne wspolczynniki uczenia
 
-# funkcja treningu modelu z trackingiem accuracy
 def train_model(model, train_loader, criterion, optimizer, X_test, y_test, epochs=800):
     model.train()
     losses = []
@@ -209,23 +205,25 @@ def evaluate_pytorch_model(model, X_test, y_test):
     
     # obliczenie metryk
     acc = accuracy_score(y_true, y_pred)
-    prec = precision_score(y_true, y_pred)
-    rec = recall_score(y_true, y_pred)
-    f1 = f1_score(y_true, y_pred)
+    
+    #ponizsze statystyki sa dostepne tylko dla danych binarnych
+    # prec = precision_score(y_true, y_pred)
+    # rec = recall_score(y_true, y_pred)
+    # f1 = f1_score(y_true, y_pred)
 
     print(f"Neural Network")
     print(f"Accuracy:  {acc:.2f}")
-    print(f"Precision: {prec:.2f}")
-    print(f"Recall:    {rec:.2f}")
-    print(f"F1 Score:  {f1:.2f}")
+    # print(f"Precision: {prec:.2f}")
+    # print(f"Recall:    {rec:.2f}")
+    # print(f"F1 Score:  {f1:.2f}")
 
     # tworzenie i wyswietlenie macierzy pomylek
-    cm = confusion_matrix(y_true, y_pred)
-    disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=[0, 1])
-    disp.plot(cmap="Blues")
-    plt.title("Neural Network - Confusion Matrix")
-    plt.savefig("./plots/NN_confusion_matrix.png")
-    plt.show()
+    # cm = confusion_matrix(y_true, y_pred)
+    # disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=[0, 1])
+    # disp.plot(cmap="Blues")
+    # plt.title("Neural Network - Confusion Matrix")
+    # plt.savefig("./plots/NN_confusion_matrix.png")
+    # plt.show()
     
     return acc
 
@@ -238,25 +236,7 @@ def plot_learning_curve_pytorch(losses):
     plt.ylabel("Loss")
     plt.grid(True)
     plt.savefig("./plots/learning_curve.png")
-    plt.show()
-
-# funkcja do wykresu accuracy
-# def plot_accuracy(train_accuracies, test_accuracies):
-#     plt.figure(figsize=(10, 6))
-    
-#     epochs = range(1, len(train_accuracies) + 1)
-#     plt.plot(epochs, train_accuracies, 'b-', label='Training Accuracy', linewidth=2)
-#     plt.plot(epochs, test_accuracies, 'r-', label='Test Accuracy', linewidth=2)
-#     plt.title('Model Accuracy Over Epochs', fontsize=14, fontweight='bold')
-#     plt.xlabel('Epoch')
-#     plt.ylabel('Accuracy')
-#     plt.legend()
-#     plt.grid(True, alpha=0.3)
-#     plt.ylim(0, 1)
-    
-#     plt.tight_layout()
-#     plt.savefig("./plots/accuracy_plot.png", dpi=300, bbox_inches='tight')
-#     plt.show()
+    # plt.show()
 
 # funkcja do wykresu krzywej uczenia z loss i accuracy
 def plot_learning_curves(losses, train_accuracies, test_accuracies):
@@ -269,7 +249,7 @@ def plot_learning_curves(losses, train_accuracies, test_accuracies):
     plt.grid(True, alpha=0.3)
     plt.tight_layout()
     plt.savefig("./plots/training_loss.png", dpi=300, bbox_inches='tight')
-    plt.show()
+    # plt.show()
   
   # accuracy
     plt.figure(figsize=(8, 6))
@@ -284,7 +264,7 @@ def plot_learning_curves(losses, train_accuracies, test_accuracies):
     plt.ylim(0, 1)
     plt.tight_layout()
     plt.savefig("./plots/model_accuracy.png", dpi=300, bbox_inches='tight')
-    plt.show()
+    # plt.show()
     
     #roznica accuracy treningu i testu
     plt.figure(figsize=(8, 6))
@@ -297,18 +277,32 @@ def plot_learning_curves(losses, train_accuracies, test_accuracies):
     plt.axhline(y=0, color='black', linestyle='--', alpha=0.5)
     plt.tight_layout()
     plt.savefig("./plots/accuracy_difference.png", dpi=300, bbox_inches='tight')
-    plt.show()
+    # plt.show()
 
 print("Training")
 losses, train_accuracies, test_accuracies = train_model(
-    model, train_loader, criterion, optimizer, X_test_tensor, y_test_tensor, epochs=250
+    model, train_loader, criterion, optimizer, X_test_tensor, y_test_tensor, epochs=51
 )
 
 # ewaluacja modelu i wykresy
 accuracy = evaluate_pytorch_model(model, X_test_tensor, y_test_tensor)
 
-plot_learning_curves(losses, train_accuracies, test_accuracies)
+# plot_learning_curves(losses, train_accuracies, test_accuracies)
 
 print(f"Neural Network Final Training Accuracy: {train_accuracies[-1] * 100:.2f}%")
 print(f"Neural Network Final Test Accuracy: {test_accuracies[-1] * 100:.2f}%")
 print(f"Neural Network Final Accuracy: {accuracy * 100:.2f}%")
+
+def weight_analysis(model):
+    # analiza wag modelu
+    weights = model.fc1.weight.data.cpu().numpy()
+    plt.figure(figsize=(12, 6))
+    sns.heatmap(weights, annot=True, cmap='coolwarm', cbar=True)
+    plt.title("Weights of the First Layer")
+    plt.xlabel("Features")
+    plt.ylabel("Neurons")
+    plt.tight_layout()
+    plt.savefig("./plots/weights_analysis.png", dpi=300, bbox_inches='tight')
+    # plt.show()
+
+weight_analysis(model)
